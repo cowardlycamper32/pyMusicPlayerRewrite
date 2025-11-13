@@ -1,4 +1,3 @@
-#!/PycharmProjects/pyMusicPlayer/.venv/bin/python
 import os
 from tkinter import *
 from tkinter import ttk, PhotoImage
@@ -67,6 +66,7 @@ class Manager:
         self.inputListener = keyboard.Listener(on_press=self.onKeyPress)
         self.inputListener.start()
         self.currentTime = "0:00"
+        self.progBarPercent = 0
 
 
     def onKeyPress(self, key):
@@ -190,6 +190,8 @@ class Manager:
         self.mixer.set_volume(self.actualVolume)
         self.displayCover()
         finishTimeLabel.config(text=self.fixTime(int(self.tagManager.length)))
+        songProgresBar.step(100-self.progBarPercent)
+        self.percent = 0
         return self.mixer
 
     def isNotPlaying(self):
@@ -197,7 +199,18 @@ class Manager:
             self.nextSong()
         self.inputTimer -= 0.5
         self.getCurrentTime()
+        self.displayProgBar()
         frm.after(500, self.isNotPlaying)
+
+
+    def displayProgBar(self):
+
+        temppercent = 100*(int(self.mixer.curr_pos+1)/self.tagManager.length)
+        print(self.percent)
+        songProgresBar.step(temppercent-self.percent)
+        print("progbar stepped: " + str(temppercent-self.percent))
+        self.percent = temppercent
+
 
     def displayCover(self):
         with open("cover.jpeg", "wb+") as cover:
@@ -238,6 +251,14 @@ placeholderPhotoImage = ImageTk.PhotoImage(placeholderImage)
 coverDisplayLabel = ttk.Label(frm, image=placeholderPhotoImage)
 coverDisplayLabel.grid(row=0, column=4)
 
+currentTimeLabel = ttk.Label(frm)
+currentTimeLabel.grid(row=1, column=1)
+finishTimeLabel = ttk.Label(frm, text="0:00")
+finishTimeLabel.grid(row=1, column=7)
+
+songProgresBar = ttk.Progressbar(frm, orient="horizontal")
+songProgresBar.grid(row=1, column=4)
+
 manager = Manager(songs)
 
 volumeLabel = ttk.Label(frm, image=volume[int(manager.mixer.volume*5)])
@@ -258,15 +279,15 @@ nextSongButton.grid(row=2, column=6)
 shuffleButton = ttk.Button(frm, text="Shuffle", command=manager.Shuffle)
 shuffleButton.grid(row=2, column=7)
 
-currentTimeLabel = ttk.Label(frm, text=manager.currentTime)
-currentTimeLabel.grid(row=1, column=1)
-finishTimeLabel = ttk.Label(frm, text="0:00")
-finishTimeLabel.grid(row=1, column=7)
+
+
+
 
 
 
 #linux test harcode song
 #manager.songs = ["dj-Nate - Final Theory.mp3"]
 manager.playSong()
+#manager.tagManager.printAllMetadata()
 frm.after(500, manager.isNotPlaying)
 root.mainloop()
