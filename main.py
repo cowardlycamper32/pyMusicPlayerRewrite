@@ -1,8 +1,13 @@
+#!/PycharmProjects/pyMusicPlayer/.venv/bin/python
 import os
 from tkinter import *
 from tkinter import ttk, PhotoImage
 import just_playback
 from math import ceil
+import random
+from tags import TagManager
+from PIL import Image, ImageTk
+from pynput import keyboard
 
 if os.name == 'nt':
     delimiter = '\\'
@@ -18,22 +23,28 @@ for i in temp:
     execDir += i + delimiter
 temp = None
 root = Tk()
+root.config(bg="red")
+
 frm = ttk.Frame(root, padding=10)
 IMAGE_DIR = execDir + delimiter + "images"
-SONG_DIR = "F:/Music"
+SONG_DIR = "/home/nova/Music/"
 print(IMAGE_DIR)
 frm.grid()
-volume = []
-volumeMuted = []
+volume = ["" ,"", "", "", "", ""]
+volumeMuted = ["", "", "", "", "", ""]
 isMuted = False
 for file in os.listdir(IMAGE_DIR):
     if file.endswith(".png"):
         if "volume" in file and "Muted" not in file:
-            temp = PhotoImage(file=f"{IMAGE_DIR}/{file}")
-            volume.insert(int(file[6]), temp)
+            temp1 = Image.open(f"{IMAGE_DIR}/{file}")
+            temp1.thumbnail((temp1.size[0]/2, temp1.size[1]/2))
+            temp = ImageTk.PhotoImage(temp1)
+            #print(f"{file} -> {temp}")
+            volume[int(file[6])] = temp
         elif "volume" in file and "Muted" in file:
-            temp = PhotoImage(file=f"{IMAGE_DIR}/{file}")
-            volumeMuted.insert(int(file[11]), temp)
+            temp1 = Image.open(f"{IMAGE_DIR}/{file}")
+            temp1.thumbnail((temp1.size[0]/2, temp1.size[1]/2))
+            volumeMuted[int(file[11])] = temp
 
 
 
@@ -42,12 +53,35 @@ for file in os.listdir(IMAGE_DIR):
 class Manager:
     def __init__(self, songs):
         self.actualVolume = 1.0
+        self.shuffle = False
         self.pos = 0
-        self.songs = songs
+        self.originalSongs = songs
+        self.songs = self.originalSongs
         self.queueHeader = 0
         self.mixer = self.playSong()
         self.loopPlaylist = False
         self.isDialogOpen = False
+        self.currentSong = None
+        self.coverImage = PhotoImage("images/placeholder.png")
+        self.inputTimer = 0
+        self.inputListener = keyboard.Listener(on_press=self.onKeyPress)
+        self.inputListener.start()
+        self.currentTime = "0:00"
+
+
+    def onKeyPress(self, key):
+        if key == keyboard.Key.media_next and self.inputTimer <= 0:
+            self.inputTimer = 1
+            self.nextSong()
+        if key == keyboard.Key.media_previous and self.inputTimer <= 0:
+            self.inputTimer = 1
+            self.prevSong()
+        if key == keyboard.Key.media_play_pause and self.inputTimer <= 0:
+            self.inputTimer = 1
+            self.pausePlay()
+        #print(key)
+
+
     def Mute(self):
         global isMuted
         global volumeLabel
@@ -58,6 +92,17 @@ class Manager:
             self.mixer.set_volume(self.actualVolume)
         self.displayVolume()
 
+    def Shuffle(self):
+        self.shuffle = not self.shuffle
+        if self.shuffle:
+            self.songs = self.originalSongs.copy()
+            random.shuffle(self.songs)
+            self.queueHeader = 0
+            self.songs.remove(self.currentSong)
+            self.songs.insert(0, self.currentSong)
+        else:
+            self.songs = self.originalSongs
+
     def VolumeUp(self):
         self.actualVolume += 0.1
         self.actualVolume = min(max(self.actualVolume, 0), 1)
@@ -67,10 +112,9 @@ class Manager:
     def displayVolume(self):
         global isMuted
         global volumeLabel
-        print(self.actualVolume)
+        #print(self.actualVolume)
         if not isMuted:
-            print(self.actualVolume)
-            print(ceil(self.actualVolume))
+            #print(self.actualVolume)
             volumeLabel.config(image=volume[int(ceil((self.actualVolume*5)*10)/10)])
         else:
             volumeLabel.config(image=volumeMuted[int(ceil((self.actualVolume*5)*10)/10)])
@@ -138,41 +182,91 @@ class Manager:
 
     def playSong(self):
         global SONG_DIR
+        self.tagManager = TagManager(SONG_DIR, self.songs[self.queueHeader])
+        root.title(f"{self.tagManager.title} - {self.tagManager.artist}")
         self.mixer = just_playback.Playback(f"{SONG_DIR}/{self.songs[self.queueHeader]}")
+        self.currentSong = self.songs[self.queueHeader]
         self.mixer.play()
         self.mixer.set_volume(self.actualVolume)
+        self.displayCover()
+        finishTimeLabel.config(text=self.fixTime(int(self.tagManager.length)))
         return self.mixer
 
     def isNotPlaying(self):
         if not self.mixer.active:
             self.nextSong()
-        frm.after(1000, self.isNotPlaying)
+        self.inputTimer -= 0.5
+        self.getCurrentTime()
+        frm.after(500, self.isNotPlaying)
+
+    def displayCover(self):
+        with open("cover.jpeg", "wb+") as cover:
+            cover.write(self.tagManager.coverData)
+        global coverDisplayLabel
+        placeholderImage = Image.open("cover.jpeg")
+        placeholderImage.thumbnail((250, 250))
+        placeholderPhotoImage = ImageTk.PhotoImage(placeholderImage)
+        #try:
+        coverDisplayLabel.image = placeholderPhotoImage
+        coverDisplayLabel.config(image=placeholderPhotoImage)
+        #except Exception as e:
+        #    print("CoverDisplayLabel not created yet")
+        #    print(e)
+
+    def fixTime(self, secondsIn):
+
+        seconds = int(secondsIn % 60)
+        minutes = int(secondsIn / 60)
+        if seconds < 10:
+            seconds = "0" + str(seconds)
+
+        return f"{minutes}:{seconds}"
+    def getCurrentTime(self):
+
+
+        #print(self.currentTime)
+        currentTimeLabel.config(text=self.fixTime(int(self.mixer.curr_pos)))
 
 songs = []
 
-for file in os.listdir("F:/Music"):
+for file in os.listdir("/home/nova/Music/"):
     if file.endswith(".mp3"):
         songs.append(file)
 
-
+placeholderImage = Image.open("images/placeholder.png")
+placeholderPhotoImage = ImageTk.PhotoImage(placeholderImage)
+coverDisplayLabel = ttk.Label(frm, image=placeholderPhotoImage)
+coverDisplayLabel.grid(row=0, column=4)
 
 manager = Manager(songs)
 
 volumeLabel = ttk.Label(frm, image=volume[int(manager.mixer.volume*5)])
-volumeLabel.grid(row=0, column=0)
+volumeLabel.grid(row=1, column=0)
 
 muteButton = (ttk.Button(frm, text="Mute", command=manager.Mute))
-muteButton.grid(row=0, column=1)
+muteButton.grid(row=2, column=1)
 pausePlayButton = ttk.Button(frm, text="pause/play", command=manager.pausePlay)
-pausePlayButton.grid(row=0, column=2)
+pausePlayButton.grid(row=2, column=2)
 volumeUpButton = ttk.Button(frm, text="Volume Up", command=manager.VolumeUp)
-volumeUpButton.grid(row=0, column=3)
+volumeUpButton.grid(row=2, column=3)
 volumeDownButton = ttk.Button(frm, text="Volume Down", command=manager.VolumeDown)
-volumeDownButton.grid(row=0, column=4)
+volumeDownButton.grid(row=2, column=4)
 prevSongButton = ttk.Button(frm, text="Previous song", command=manager.prevSong)
-prevSongButton.grid(row=0, column=5)
+prevSongButton.grid(row=2, column=5)
 nextSongButton = ttk.Button(frm, text="Next song", command=manager.nextSong)
-nextSongButton.grid(row=0, column=6)
+nextSongButton.grid(row=2, column=6)
+shuffleButton = ttk.Button(frm, text="Shuffle", command=manager.Shuffle)
+shuffleButton.grid(row=2, column=7)
+
+currentTimeLabel = ttk.Label(frm, text=manager.currentTime)
+currentTimeLabel.grid(row=1, column=1)
+finishTimeLabel = ttk.Label(frm, text="0:00")
+finishTimeLabel.grid(row=1, column=7)
+
+
+
+#linux test harcode song
+#manager.songs = ["dj-Nate - Final Theory.mp3"]
 manager.playSong()
-frm.after(1000, manager.isNotPlaying)
+frm.after(500, manager.isNotPlaying)
 root.mainloop()
