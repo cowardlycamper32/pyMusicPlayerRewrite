@@ -1,4 +1,5 @@
 import os
+from operator import index
 from tkinter import *
 from tkinter import ttk, PhotoImage
 import just_playback
@@ -59,14 +60,16 @@ class Manager:
         self.queueHeader = 0
         self.mixer = self.playSong()
         self.loopPlaylist = False
+        self.loopMode = "None"
         self.isDialogOpen = False
         self.currentSong = None
         self.coverImage = PhotoImage("images/placeholder.png")
         self.inputTimer = 0
         self.inputListener = keyboard.Listener(on_press=self.onKeyPress)
-        self.inputListener.start()
         self.currentTime = "0:00"
-        self.progBarPercent = 0
+        self.progressBar = 0
+        self.inputListener.start()
+
 
 
     def onKeyPress(self, key):
@@ -190,7 +193,13 @@ class Manager:
         self.mixer.set_volume(self.actualVolume)
         self.displayCover()
         finishTimeLabel.config(text=self.fixTime(int(self.tagManager.length)))
-        songProgresBar.step(100-self.progBarPercent)
+        songNameLabel.config(text=self.tagManager.title)
+        songArtistLabel.config(text=self.tagManager.artist)
+        try:
+            songProgresBar.step(100-self.percent)
+            #print(f"Progress bar stepped {100-self.percent}")
+        except AttributeError as e:
+            print(e)
         self.percent = 0
         return self.mixer
 
@@ -206,9 +215,9 @@ class Manager:
     def displayProgBar(self):
 
         temppercent = 100*(int(self.mixer.curr_pos+1)/self.tagManager.length)
-        print(self.percent)
+        #print(self.percent)
         songProgresBar.step(temppercent-self.percent)
-        print("progbar stepped: " + str(temppercent-self.percent))
+        #print("progbar stepped: " + str(temppercent-self.percent))
         self.percent = temppercent
 
 
@@ -240,6 +249,37 @@ class Manager:
         #print(self.currentTime)
         currentTimeLabel.config(text=self.fixTime(int(self.mixer.curr_pos)))
 
+
+    def loopButton(self):
+        print("Triggered loop button")
+        print(self.loopMode)
+        if self.loopMode == "None":
+            self.setLoopAll()
+        elif self.loopMode == "All":
+            self.setLoopSong()
+        elif self.loopMode == "Song":
+            self.setLoopNone()
+        loopButton.config(text=self.loopMode)
+
+    def setLoopAll(self):
+        self.loopPlaylist = True
+        self.loopMode = "All"
+
+    def setLoopSong(self):
+        self.songs = [self.currentSong]
+        self.loopPlaylist = True
+        self.loopMode = "Song"
+
+    def setLoopNone(self):
+        self.loopPlaylist = False
+        if self.shuffle:
+            self.Shuffle()
+        else:
+            self.songs = self.originalSongs
+            self.queueHeader = self.songs.index(self.currentSong)
+            print(f"triggered no loop - shuffle at index {self.queueHeader}")
+        self.loopMode = "None"
+
 songs = []
 
 for file in os.listdir("/home/nova/Music/"):
@@ -259,31 +299,52 @@ finishTimeLabel.grid(row=1, column=7)
 songProgresBar = ttk.Progressbar(frm, orient="horizontal")
 songProgresBar.grid(row=1, column=4)
 
+songInfoFrame = ttk.Frame(frm)
+songInfoFrame.place(relx=0.5, rely=0.6, anchor="n")
+
+songNameLabel = ttk.Label(songInfoFrame)
+songNameLabel.grid(row=1, column=0)
+
+songArtistLabel = ttk.Label(songInfoFrame)
+songArtistLabel.grid(row=2, column=0)
+
+#songInfoFrame.pack()
+
+
 manager = Manager(songs)
 
 volumeLabel = ttk.Label(frm, image=volume[int(manager.mixer.volume*5)])
 volumeLabel.grid(row=1, column=0)
 
 muteButton = (ttk.Button(frm, text="Mute", command=manager.Mute))
-muteButton.grid(row=2, column=1)
+muteButton.grid(row=3, column=1)
 pausePlayButton = ttk.Button(frm, text="pause/play", command=manager.pausePlay)
-pausePlayButton.grid(row=2, column=2)
+pausePlayButton.grid(row=3, column=4)
 volumeUpButton = ttk.Button(frm, text="Volume Up", command=manager.VolumeUp)
-volumeUpButton.grid(row=2, column=3)
+volumeUpButton.grid(row=3, column=2)
 volumeDownButton = ttk.Button(frm, text="Volume Down", command=manager.VolumeDown)
-volumeDownButton.grid(row=2, column=4)
+volumeDownButton.grid(row=3, column=6)
 prevSongButton = ttk.Button(frm, text="Previous song", command=manager.prevSong)
-prevSongButton.grid(row=2, column=5)
+prevSongButton.grid(row=3, column=3)
 nextSongButton = ttk.Button(frm, text="Next song", command=manager.nextSong)
-nextSongButton.grid(row=2, column=6)
+nextSongButton.grid(row=3, column=5)
 shuffleButton = ttk.Button(frm, text="Shuffle", command=manager.Shuffle)
-shuffleButton.grid(row=2, column=7)
+shuffleButton.grid(row=3, column=7)
+
+
+
+loopButton = ttk.Button(frm, text=manager.loopMode, command=manager.loopButton)
+loopButton.grid(row=3, column=8)
+
+frm.pack(expand=False, fill="both")
 
 
 
 
 
 
+
+#print(manager.progressBar)
 
 #linux test harcode song
 #manager.songs = ["dj-Nate - Final Theory.mp3"]
