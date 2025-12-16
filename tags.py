@@ -1,10 +1,12 @@
 import mutagen
 from mutagen.mp3 import MP3
 from mutagen.easyid3 import EasyID3
+import ffmpeg
 
 class TagManager:
     def __init__(self, song_dir, path):
         self.path = path
+        self.songDir = song_dir
         self.regularObject = MP3(f"{song_dir}{self.path}", ID3=EasyID3)
         self.coverObject = MP3(song_dir + self.path)
         self.title = self.getTitle()
@@ -39,6 +41,24 @@ class TagManager:
     def getLength(self):
         try:
             length = self.regularObject.info.length
+            if not length:
+                print(f"File {self.path} has no length metadata, falling back to ffmpeg")
+                probe = ffmpeg.probe(f"{self.songDir}{self.path}")
+                stream = next((stream for stream in probe['streams'] if stream['codec_type'] == 'audio'), None)
+                length = int(float(stream['duration']))
+                print(f"ffmpeg read file as {length}")
             return length
-        except:
+        except Exception as e:
+            print(e)
             raise Exception("Corrupt Metadata in " + self.path)
+
+    def printAllMetadata(self, toFile=False, filePath=None):
+        if toFile:
+            if not filePath:
+                raise AttributeError("missing filePath arg")
+            file = open("metadata.txt", "w+")
+            file.write(self.regularObject.tags)
+            file.close()
+        else:
+            print(self.regularObject.tags)
+            print(self.regularObject.info.length)
