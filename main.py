@@ -27,7 +27,8 @@ root.config(bg="red")
 
 frm = ttk.Frame(root, padding=10)
 IMAGE_DIR = execDir + delimiter + "images"
-SONG_DIR = "/home/nova/Music/"
+#SONG_DIR = "/home/nova/Music/"
+SONG_DIR = "F:/Music/"
 print(IMAGE_DIR)
 frm.grid()
 volume = ["" ,"", "", "", "", ""]
@@ -200,10 +201,13 @@ class Manager:
         frm.after(500, self.isNotPlaying)
 
     def displayCover(self):
-        with open("cover.jpeg", "wb+") as cover:
-            cover.write(self.tagManager.coverData)
+        with open("cover.png", "wb+") as cover:
+            if self.tagManager.coverData is not None:
+                cover.write(self.tagManager.coverData)
+            else:
+                cover.write(open("images/placeholder.png", "rb").read())
         global coverDisplayLabel
-        placeholderImage = Image.open("cover.jpeg")
+        placeholderImage = Image.open("cover.png")
         placeholderImage.thumbnail((250, 250))
         placeholderPhotoImage = ImageTk.PhotoImage(placeholderImage)
         #try:
@@ -229,7 +233,7 @@ class Manager:
 
 songs = []
 
-for file in os.listdir("/home/nova/Music/"):
+for file in os.listdir(SONG_DIR):
     if file.endswith(".mp3"):
         songs.append(file)
 
@@ -266,7 +270,7 @@ finishTimeLabel.grid(row=1, column=7)
 
 
 #linux test harcode song
-#manager.songs = ["dj-Nate - Final Theory.mp3"]
+manager.songs = ["41 - MURDER EVERY 1 U KNOW! (feat. takihasdied).mp3"]
 manager.playSong()
 frm.after(500, manager.isNotPlaying)
 root.mainloop()

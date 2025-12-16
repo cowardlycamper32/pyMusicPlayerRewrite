@@ -11,6 +11,7 @@ class TagManager:
         self.artist = self.getArtist()
         self.coverData = self.getCover()
         self.length = self.getLength()
+        print(self.coverObject.keys())
 
     def getTitle(self):
         title = self.regularObject.get("title")
