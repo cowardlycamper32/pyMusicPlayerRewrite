@@ -2,6 +2,7 @@ import mutagen
 from mutagen.mp3 import MP3
 from mutagen.easyid3 import EasyID3
 import ffmpeg
+import string
 
 class TagManager:
     def __init__(self, song_dir, path):
@@ -31,10 +32,16 @@ class TagManager:
 
     def getCover(self):
         coverData = self.coverObject.get("APIC:Cover")
-        if not coverData:
-            coverData = self.coverObject.get(f"APIC:Cover of {self.getTitle()} by {self.getArtist()}")
+        if coverData is None:
+            getString = f"APIC:Cover of {self.getTitle()} by {self.getArtist()}"
+            getString = self.parseSpecialChars(getString)
+            print(getString)
+            coverData = self.coverObject.get(getString)
+            print(coverData)
             if not coverData:
                 return open("images/placeholder.png", "br").read()
+            else:
+                return coverData.data
         else:
             return coverData.data
 
@@ -62,3 +69,8 @@ class TagManager:
         else:
             print(self.regularObject.tags)
             print(self.regularObject.info.length)
+
+    def parseSpecialChars(self, inputString):
+        inputString = inputString.replace("’", "\\x19")
+        #print(inputString)
+        return inputString

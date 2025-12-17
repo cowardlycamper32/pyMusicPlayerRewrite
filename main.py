@@ -351,7 +351,7 @@ frm.pack(expand=False, fill="both")
 #print(manager.progressBar)
 
 #linux test harcode song
-manager.songs = ["41 - MURDER EVERY 1 U KNOW! (feat. takihasdied).mp3"]
+#manager.songs = ["41 - MURDER EVERY 1 U KNOW! (feat. takihasdied).mp3"]
 manager.playSong()
 #manager.tagManager.printAllMetadata()
 frm.after(500, manager.isNotPlaying)
